@@ -1,206 +1,330 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Palette, Bell, User, Shield, Monitor, ArrowLeft,
+  Check, Globe, Zap, Moon, Sun, Sliders, RefreshCw,
+  GitBranch, LogOut, Mail, Key
+} from 'lucide-react';
 import { useAuthStore } from '../store';
-import api from '../lib/api';
-import { openAlertBox } from '../lib/toast';
-import { Save, User, Building, Clock } from 'lucide-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 
-export function SettingsPage() {
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'profile' | 'org'>('profile');
+const THEMES = [
+  { id: 'ethereal',  label: 'Ethereal Dark',  accent: '#6577f3', bg: '#0d1117', preview: ['#0d1117','#161b27','#6577f3'] },
+  { id: 'midnight',  label: 'Midnight Blue',  accent: '#3b82f6', bg: '#0a0f1e', preview: ['#0a0f1e','#0f172a','#3b82f6'] },
+  { id: 'forest',    label: 'Forest Dark',    accent: '#10b981', bg: '#0a1a12', preview: ['#0a1a12','#0f2418','#10b981'] },
+  { id: 'rose',      label: 'Rose Nebula',    accent: '#f43f5e', bg: '#1a0a0f', preview: ['#1a0a0f','#2a0f18','#f43f5e'] },
+  { id: 'amber',     label: 'Amber Dusk',     accent: '#f59e0b', bg: '#1a1200', preview: ['#1a1200','#261a00','#f59e0b'] },
+  { id: 'cyberpunk', label: 'Cyberpunk',      accent: '#a855f7', bg: '#0d0a1a', preview: ['#0d0a1a','#160f26','#a855f7'] },
+];
 
-  // --- Profile State ---
-  const [profileName, setProfileName] = useState(user?.name || '');
-  const [githubUsername, setGithubUsername] = useState(user?.githubUsername || '');
+const SECTIONS = [
+  { id: 'appearance', label: 'Appearance',    icon: Palette  },
+  { id: 'account',    label: 'Account',       icon: User     },
+  { id: 'notifications', label: 'Notifications', icon: Bell  },
+  { id: 'integrations',  label: 'Integrations',  icon: GitBranch },
+  { id: 'security',   label: 'Security',      icon: Shield   },
+];
 
-  // --- Org State ---
-  const [orgName, setOrgName] = useState('');
-  const [businessHoursStart, setBusinessHoursStart] = useState(9);
-  const [businessHoursEnd, setBusinessHoursEnd] = useState(18);
-  const [timezone, setTimezone] = useState('UTC');
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle} style={{
+      width: 40, height: 22, borderRadius: 11, cursor: 'pointer', border: 'none',
+      background: on ? 'var(--dd-accent)' : 'rgba(255,255,255,0.1)',
+      position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+    }}>
+      <div style={{
+        position: 'absolute', top: 4, left: on ? 20 : 4,
+        width: 14, height: 14, borderRadius: '50%', background: 'white',
+        transition: 'left 0.2s',
+      }} />
+    </button>
+  );
+}
 
-  // Fetch Org Settings
-  const { data: orgData } = useQuery({
-    queryKey: ['org-settings'],
-    queryFn: async () => {
-      const res = await api.get('/orgs/settings');
-      return res.data.org;
-    },
-    enabled: !!user?.orgId,
+function SectionRow({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--dd-text)' }}>{label}</div>
+        {desc && <div style={{ fontSize: 12, color: 'var(--dd-text-muted)', marginTop: 3 }}>{desc}</div>}
+      </div>
+      <div style={{ flexShrink: 0, marginLeft: 24 }}>{children}</div>
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const { user, clearAuth } = useAuthStore();
+  const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState('appearance');
+  const [activeTheme, setActiveTheme] = useState('ethereal');
+  const [prefs, setPrefs] = useState({
+    autoRefresh: true,
+    soundNotifs: false,
+    emailWeekly: true,
+    emailAlerts: true,
+    slackInteg: false,
+    compactMode: false,
+    reducedMotion: false,
   });
+  const pref = (k: keyof typeof prefs) => () => setPrefs(p => ({ ...p, [k]: !p[k] }));
 
-  useEffect(() => {
-    if (orgData) {
-      setOrgName(orgData.name || '');
-      setBusinessHoursStart(orgData.config?.businessHoursStart || 9);
-      setBusinessHoursEnd(orgData.config?.businessHoursEnd || 18);
-      setTimezone(orgData.config?.timezone || 'UTC');
-    }
-  }, [orgData]);
-
-  const updateProfileMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const res = await api.put('/users/me', payload);
-      return res.data;
-    },
-    onSuccess: (data) => {
-      useAuthStore.getState().setUser(data.user);
-      openAlertBox('success', 'Profile updated successfully!');
-    },
-  });
-
-  const updateOrgMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const res = await api.put('/orgs/settings', payload);
-      return res.data;
-    },
-    onSuccess: () => {
-      openAlertBox('success', 'Organization settings updated!');
-    },
-  });
-
-  const handleProfileSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateProfileMutation.mutate({ name: profileName, githubUsername });
-  };
-
-  const handleOrgSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateOrgMutation.mutate({ name: orgName, businessHoursStart, businessHoursEnd, timezone });
+  const applyTheme = (t: typeof THEMES[0]) => {
+    document.documentElement.style.setProperty('--dd-accent', t.accent);
+    document.documentElement.style.setProperty('--dd-accent-dim', t.accent + '26');
+    document.documentElement.style.setProperty('--dd-bg', t.bg);
+    document.body.style.background = t.bg;
+    setActiveTheme(t.id);
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-12">
-      <header className="mb-12">
-        <h1 className="text-5xl font-black mb-4">Settings</h1>
-        <p className="text-slate-400 text-lg">Manage your personal profile and organization preferences.</p>
-      </header>
-
-      {/* Tabs */}
-      <div className="flex gap-4 mb-8">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-            activeTab === 'profile' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <User className="inline-block w-5 h-5 mr-2" />
-          Personal Profile
-        </button>
-        <button
-          onClick={() => setActiveTab('org')}
-          className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-            activeTab === 'org' ? 'bg-violet-500/20 text-violet-400 border border-violet-500/50' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Building className="inline-block w-5 h-5 mr-2" />
-          Organization
-        </button>
+    <div className="animate-fade-in">
+      <div className="page-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid var(--dd-border)', borderRadius: 8, color: 'var(--dd-text-muted)', fontSize: 13, cursor: 'pointer', padding: '7px 12px', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--dd-text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--dd-text-muted)'; e.currentTarget.style.borderColor = 'var(--dd-border)'; }}
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+          <div>
+            <h1 className="page-title">Settings</h1>
+            <p className="page-subtitle">Manage your account, appearance, and preferences.</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Profile Settings */}
-        {activeTab === 'profile' && (
-          <div className="glass-card p-8 animate-fade-in-up">
-            <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
-            <form onSubmit={handleProfileSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Display Name</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all text-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">GitHub Username</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    value={githubUsername}
-                    onChange={(e) => setGithubUsername(e.target.value)}
-                    placeholder="e.g. torvalds"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all text-white"
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={updateProfileMutation.isPending}
-                className="w-full magnetic-btn bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold py-4 rounded-xl flex items-center justify-center transition-all disabled:opacity-50"
-              >
-                <Save className="w-5 h-5 mr-2" />
-                {updateProfileMutation.isPending ? 'Saving...' : 'Save Profile'}
-              </button>
-            </form>
-          </div>
-        )}
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, alignItems: 'start' }}>
+        {/* Sidebar nav */}
+        <div className="dd-card" style={{ padding: '8px 8px', position: 'sticky', top: 24 }}>
+          {SECTIONS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveSection(id)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: activeSection === id ? 'var(--dd-accent-dim)' : 'none',
+                color: activeSection === id ? 'var(--dd-text)' : 'var(--dd-text-muted)',
+                fontSize: 13, fontWeight: activeSection === id ? 600 : 400,
+                textAlign: 'left', transition: 'all 0.15s', marginBottom: 2,
+              }}
+              onMouseEnter={e => { if (activeSection !== id) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+              onMouseLeave={e => { if (activeSection !== id) e.currentTarget.style.background = 'none'; }}
+            >
+              <Icon size={15} style={{ color: activeSection === id ? 'var(--dd-accent)' : 'inherit' }} />
+              {label}
+            </button>
+          ))}
 
-        {/* Org Settings */}
-        {activeTab === 'org' && (
-          <div className="glass-card p-8 animate-fade-in-up">
-            <h2 className="text-2xl font-bold mb-6">Organization Preferences</h2>
-            <form onSubmit={handleOrgSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Organization Name</label>
-                <div className="relative">
-                  <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    value={orgName}
-                    onChange={(e) => setOrgName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white"
-                  />
+          <div style={{ margin: '8px 0', borderTop: '1px solid var(--dd-border)' }} />
+
+          <button
+            onClick={() => { clearAuth(); navigate('/'); }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: 'none', color: 'var(--dd-red)', fontSize: 13, fontWeight: 400, textAlign: 'left',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,81,73,0.08)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          >
+            <LogOut size={15} /> Sign out
+          </button>
+        </div>
+
+        {/* Content */}
+        <div>
+
+          {/* APPEARANCE */}
+          {activeSection === 'appearance' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div className="dd-card animate-fade-in" style={{ padding: '24px 28px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                  <Palette size={16} style={{ color: 'var(--dd-accent)' }} />
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--dd-text)' }}>Theme</h3>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">Start Hour (0-23)</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                    <input
-                      type="number"
-                      min="0"
-                      max="23"
-                      value={businessHoursStart}
-                      onChange={(e) => setBusinessHoursStart(parseInt(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">End Hour (0-23)</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                    <input
-                      type="number"
-                      min="0"
-                      max="23"
-                      value={businessHoursEnd}
-                      onChange={(e) => setBusinessHoursEnd(parseInt(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white"
-                    />
-                  </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                  {THEMES.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => applyTheme(t)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', gap: 10,
+                        padding: '14px', borderRadius: 10, cursor: 'pointer',
+                        background: activeTheme === t.id ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+                        border: activeTheme === t.id ? `2px solid ${t.accent}` : '2px solid rgba(255,255,255,0.06)',
+                        textAlign: 'left', transition: 'all 0.2s', position: 'relative',
+                      }}
+                    >
+                      {/* Mini preview */}
+                      <div style={{ display: 'flex', gap: 4, height: 36, borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ flex: 1, background: t.preview[0] }} />
+                        <div style={{ width: 40, background: t.preview[1] }} />
+                        <div style={{ width: 10, background: t.preview[2] }} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dd-text)' }}>{t.label}</div>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: t.accent, marginTop: 4, boxShadow: `0 0 6px ${t.accent}88` }} />
+                        </div>
+                        {activeTheme === t.id && (
+                          <div style={{ width: 20, height: 20, borderRadius: '50%', background: t.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Check size={11} color="white" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={updateOrgMutation.isPending}
-                className="w-full magnetic-btn bg-violet-500 hover:bg-violet-600 text-white font-bold py-4 rounded-xl flex items-center justify-center transition-all disabled:opacity-50"
-              >
-                <Save className="w-5 h-5 mr-2" />
-                {updateOrgMutation.isPending ? 'Saving...' : 'Save Organization'}
-              </button>
-            </form>
-          </div>
-        )}
+              <div className="dd-card animate-fade-in-up delay-100" style={{ padding: '24px 28px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Monitor size={16} style={{ color: 'var(--dd-accent)' }} />
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--dd-text)' }}>Display</h3>
+                </div>
+                <SectionRow label="Compact Mode" desc="Reduce padding and spacing across the UI">
+                  <Toggle on={prefs.compactMode} onToggle={pref('compactMode')} />
+                </SectionRow>
+                <SectionRow label="Reduced Motion" desc="Disable animations for better accessibility">
+                  <Toggle on={prefs.reducedMotion} onToggle={pref('reducedMotion')} />
+                </SectionRow>
+                <SectionRow label="Auto-refresh Data" desc="Automatically refresh metrics every 60 seconds">
+                  <Toggle on={prefs.autoRefresh} onToggle={pref('autoRefresh')} />
+                </SectionRow>
+              </div>
+            </div>
+          )}
+
+          {/* ACCOUNT */}
+          {activeSection === 'account' && (
+            <div className="dd-card animate-fade-in" style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <User size={16} style={{ color: 'var(--dd-accent)' }} />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--dd-text)' }}>Account</h3>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, marginBottom: 20, border: '1px solid var(--dd-border)' }}>
+                {user?.avatar
+                  ? <img src={user.avatar} style={{ width: 56, height: 56, borderRadius: '50%', border: '2px solid var(--dd-border)' }} />
+                  : <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#6577f3,#00cba9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: 'white' }}>{user?.name?.[0]}</div>
+                }
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--dd-text)' }}>{user?.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--dd-text-muted)', marginTop: 2 }}>{user?.email}</div>
+                  <div style={{ marginTop: 6 }}><span className="badge badge-accent">Staff Engineer</span></div>
+                </div>
+              </div>
+
+              <SectionRow label="Display Name" desc={user?.name ?? ''}>
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>Edit</button>
+              </SectionRow>
+              <SectionRow label="Email" desc={user?.email ?? ''}>
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>Edit</button>
+              </SectionRow>
+              <SectionRow label="GitHub Account" desc="Connected via OAuth">
+                <span className="badge badge-green">Connected</span>
+              </SectionRow>
+              <SectionRow label="Organization" desc="Link to a GitHub organization">
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>Link Org</button>
+              </SectionRow>
+
+              <div style={{ marginTop: 24, padding: '16px', background: 'rgba(248,81,73,0.05)', border: '1px solid rgba(248,81,73,0.15)', borderRadius: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--dd-red)', marginBottom: 6 }}>Danger Zone</div>
+                <div style={{ fontSize: 12, color: 'var(--dd-text-muted)', marginBottom: 12 }}>Permanently delete your account and all associated data.</div>
+                <button style={{ background: 'rgba(248,81,73,0.12)', border: '1px solid rgba(248,81,73,0.3)', borderRadius: 8, color: 'var(--dd-red)', fontSize: 13, fontWeight: 600, padding: '8px 16px', cursor: 'pointer' }}>
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* NOTIFICATIONS */}
+          {activeSection === 'notifications' && (
+            <div className="dd-card animate-fade-in" style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Bell size={16} style={{ color: 'var(--dd-accent)' }} />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--dd-text)' }}>Notifications</h3>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--dd-text-muted)', marginBottom: 20 }}>Choose how and when you receive alerts.</div>
+
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.09em', color: 'var(--dd-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Email</div>
+              <SectionRow label="Weekly Summary" desc="Receive a weekly digest of your engineering metrics">
+                <Toggle on={prefs.emailWeekly} onToggle={pref('emailWeekly')} />
+              </SectionRow>
+              <SectionRow label="Stall Alerts" desc="Get notified when PRs stall for more than 24 hours">
+                <Toggle on={prefs.emailAlerts} onToggle={pref('emailAlerts')} />
+              </SectionRow>
+
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.09em', color: 'var(--dd-text-muted)', textTransform: 'uppercase', marginTop: 20, marginBottom: 4 }}>In-App</div>
+              <SectionRow label="Sound Notifications" desc="Play a sound when important events occur">
+                <Toggle on={prefs.soundNotifs} onToggle={pref('soundNotifs')} />
+              </SectionRow>
+            </div>
+          )}
+
+          {/* INTEGRATIONS */}
+          {activeSection === 'integrations' && (
+            <div className="dd-card animate-fade-in" style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <GitBranch size={16} style={{ color: 'var(--dd-accent)' }} />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--dd-text)' }}>Integrations</h3>
+              </div>
+              {[
+                { name: 'GitHub', desc: 'Pull request data, commits, and webhook events.', connected: true, icon: '🐙' },
+                { name: 'Slack',  desc: 'Get alerts and summaries in your Slack workspace.', connected: false, icon: '💬' },
+                { name: 'Jira',   desc: 'Sync sprint and issue data from Jira projects.',   connected: false, icon: '📋' },
+                { name: 'PagerDuty', desc: 'Trigger incidents from critical pipeline failures.', connected: false, icon: '🚨' },
+              ].map(({ name, desc, connected, icon }) => (
+                <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--dd-border)', borderRadius: 10, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--dd-text)' }}>{name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--dd-text-muted)', marginTop: 2 }}>{desc}</div>
+                    </div>
+                  </div>
+                  {connected
+                    ? <span className="badge badge-green">Connected</span>
+                    : <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>Connect</button>
+                  }
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* SECURITY */}
+          {activeSection === 'security' && (
+            <div className="dd-card animate-fade-in" style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Shield size={16} style={{ color: 'var(--dd-accent)' }} />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--dd-text)' }}>Security</h3>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--dd-text-muted)', marginBottom: 20 }}>Manage your account security and access.</div>
+
+              <SectionRow label="Google SSO" desc="Sign in via Google — no password required">
+                <span className="badge badge-green">Active</span>
+              </SectionRow>
+              <SectionRow label="Active Sessions" desc="You have 1 active session on this device">
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>View Sessions</button>
+              </SectionRow>
+              <SectionRow label="API Token" desc="Generate a personal API token for CI integrations">
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>Generate</button>
+              </SectionRow>
+              <SectionRow label="Audit Log" desc="View all account activity and login events">
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }}>View Log</button>
+              </SectionRow>
+
+              <div style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(0,203,169,0.05)', border: '1px solid rgba(0,203,169,0.15)', borderRadius: 10 }}>
+                <div style={{ fontSize: 12, color: 'var(--dd-text-muted)', lineHeight: 1.6 }}>
+                  🔒 Your account is secured with Google OAuth. DevDeck stores no passwords and never has write access to your GitHub repositories.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
