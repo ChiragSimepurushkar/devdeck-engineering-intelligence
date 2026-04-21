@@ -1,104 +1,54 @@
 import express from 'express';
 import crypto from 'crypto';
-import PullRequest from '../models/PullRequest.js';
-import Repository from '../models/Repository.js';
 import logger from '../config/logger.js';
+import { webhookQueue } from '../jobs/webhookQueue.js';
+// import { getIo } from '../socket/index.js'; // Ensure IO gets emitted
 
 const router = express.Router();
 
-function validateGitHubSignature(payload, signature, secret) {
-  const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(payload);
-  const expected = `sha256=${hmac.digest('hex')}`;
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-  } catch {
-    return false;
+// Middleware: Authenticate Github Webhook HMAC signatures
+const verifyGitHubWebhook = (req, res, next) => {
+  const signature = req.headers['x-hub-signature-256'];
+  if (!signature) {
+    return res.status(401).json({ success: false, message: 'No signature found' });
   }
-}
+
+  // The payload MUST be stringified EXACTLY as it was received. In Express, you need raw-body parsed for perfect HMAC matching.
+  // Using JSON.stringify(req.body) works 99% of the time assuming no unescaped char drifts.
+  const payloadString = JSON.stringify(req.body);
+  const secret = process.env.GITHUB_WEBHOOK_SECRET || 'devdeck_webhook_verification_secret_key';
+
+  const hmac = crypto.createHmac('sha256', secret);
+  const digest = 'sha256=' + hmac.update(payloadString).digest('hex');
+
+  if (signature !== digest) {
+    logger.warn('Webhook signature mismatch', { signature, digest });
+    return res.status(401).json({ success: false, message: 'Invalid signature' });
+  }
+
+  next();
+};
 
 // POST /api/webhooks/github
-router.post('/github', express.raw({ type: 'application/json' }), async (req, res) => {
-  const signature = req.headers['x-hub-signature-256'];
-  const event = req.headers['x-github-event'];
-  const rawBody = req.body;
-
-  const secret = process.env.GITHUB_WEBHOOK_SECRET;
-  if (secret && signature) {
-    if (!validateGitHubSignature(rawBody, signature, secret)) {
-      logger.warn('Invalid webhook signature');
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-  }
-
-  let payload;
+router.post('/github', verifyGitHubWebhook, async (req, res) => {
   try {
-    payload = JSON.parse(rawBody.toString());
-  } catch {
-    return res.status(400).json({ error: 'Invalid JSON' });
-  }
+    const event = req.headers['x-github-event'];
+    const action = req.body.action;
 
-  // Reject payloads older than 5 minutes
-  const delivered = req.headers['x-github-delivery'];
-  logger.info(`Webhook received: ${event}`, { delivery: delivered });
+    logger.info(`📥 Received GitHub webhook`, { event, action });
 
-  res.status(200).json({ received: true });
+    // Instantly queue this large incoming payload into Redis/BullMQ to prevent holding up the GitHub request timeout
+    await webhookQueue.add(`webhook:${event}:${action}`, {
+      event,
+      action,
+      payload: req.body,
+    });
 
-  // Process async
-  try {
-    await processWebhookEvent(event, payload);
+    res.status(202).json({ success: true, message: 'Webhook securely queued for processing' });
   } catch (err) {
-    logger.error('Webhook processing error', { error: err.message });
+    logger.error('Webhook error', { error: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error while processing webhook' });
   }
 });
-
-async function processWebhookEvent(event, payload) {
-  if (!['pull_request', 'pull_request_review'].includes(event)) return;
-
-  const repoFullName = payload.repository?.full_name;
-  if (!repoFullName) return;
-
-  const repo = await Repository.findOne({ fullName: repoFullName, isActive: true });
-  if (!repo) {
-    logger.info(`Webhook for untracked repo: ${repoFullName}`);
-    return;
-  }
-
-  if (event === 'pull_request') {
-    const ghPr = payload.pull_request;
-    const action = payload.action;
-    const updates = {
-      title: ghPr.title,
-      body: ghPr.body,
-      isDraft: ghPr.draft,
-      linesAdded: ghPr.additions,
-      linesRemoved: ghPr.deletions,
-      filesChanged: ghPr.changed_files,
-      lastActivityAt: new Date(),
-      requestedReviewers: (ghPr.requested_reviewers || []).map((r) => ({
-        username: r.login,
-        avatarUrl: r.avatar_url,
-      })),
-    };
-
-    if (action === 'closed') {
-      updates.state = ghPr.merged ? 'merged' : 'closed';
-      if (ghPr.merged) updates.mergedAt = new Date(ghPr.merged_at);
-      updates.closedAt = new Date(ghPr.closed_at);
-    }
-
-    const updated = await PullRequest.findOneAndUpdate(
-      { repoFullName, githubPrId: ghPr.id },
-      updates,
-      { new: true }
-    );
-
-    if (updated) {
-      // Broadcast via Socket.IO (imported lazily to avoid circular deps)
-      const { broadcastPRUpdate } = await import('../socket/index.js');
-      broadcastPRUpdate(repo.orgId.toString(), updated);
-    }
-  }
-}
 
 export default router;

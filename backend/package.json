@@ -11,6 +11,7 @@
   "dependencies": {
     "@octokit/rest": "^21.0.2",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.75.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "cryptr": "^6.3.0",
@@ -19,6 +20,7 @@
     "express-rate-limit": "^7.5.0",
     "firebase-admin": "^13.3.0",
     "helmet": "^8.0.0",
+    "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.14.1",
     "socket.io": "^4.8.1",
