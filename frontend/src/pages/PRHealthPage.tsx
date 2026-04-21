@@ -12,6 +12,17 @@ const healthColor: Record<BubbleHealth, string> = {
   stalled: '#ef4444',
 };
 
+// Nuance signal: human-readable labels and colours per stall reason.
+// Culture problems get orange/red. Legitimate complexity gets blue/purple.
+const STALL_META: Record<string, { label: string; color: string }> = {
+  REVIEWER_INACTIVE: { label: '⚠ Reviewer inactive',      color: '#f59e0b' },
+  NO_REVIEWER:       { label: '⚠ No reviewer assigned',   color: '#f59e0b' },
+  CHURNING:          { label: '🔄 High churn',            color: '#ef4444' },
+  COMPLEX_IN_REVIEW: { label: '✓ Complex — in review',   color: '#06b6d4' },
+  NEEDS_EXPERT:      { label: '🔍 Needs expert reviewer', color: '#8b5cf6' },
+  STALLED:           { label: '✗ Stalled',                color: '#ef4444' },
+};
+
 /* ---------- D3 Bubble Matrix ---------- */
 function BubbleMatrix({ data }: { data: any[] }) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -95,16 +106,32 @@ function BubbleMatrix({ data }: { data: any[] }) {
       <svg ref={svgRef} style={{ width: '100%', display: 'block' }} />
       {tooltip.visible && tooltip.pr && (
         <div className="glass-card pointer-events-none absolute z-10 p-3"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 40, minWidth: 200, fontSize: 12 }}>
+          style={{ left: tooltip.x + 12, top: tooltip.y - 40, minWidth: 220, fontSize: 12 }}>
           <div className="font-medium mb-1">PR #{tooltip.pr.number}</div>
-          <div style={{ color: 'var(--color-text-secondary)' }} className="truncate mb-1">{tooltip.pr.title}</div>
-          <div className="flex gap-3">
+          <div style={{ color: 'var(--color-text-secondary)' }} className="truncate mb-2">{tooltip.pr.title}</div>
+          <div className="flex gap-2 flex-wrap mb-2">
             <span style={{ color: 'var(--color-healthy)' }}>+{tooltip.pr.linesAdded}</span>
             <span style={{ color: 'var(--color-danger)' }}>-{tooltip.pr.linesRemoved}</span>
             <span className={`badge badge-${tooltip.pr.health === 'healthy' ? 'healthy' : tooltip.pr.health === 'at-risk' ? 'warning' : 'danger'}`}>
               {tooltip.pr.health}
             </span>
+            <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{tooltip.pr.complexity}</span>
           </div>
+          {/* Nuance signal — the key PS-03 differentiator */}
+          {tooltip.pr.stallReason && STALL_META[tooltip.pr.stallReason] && (
+            <div style={{
+              marginTop: 4,
+              padding: '3px 8px',
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              background: STALL_META[tooltip.pr.stallReason].color + '22',
+              color: STALL_META[tooltip.pr.stallReason].color,
+              border: `1px solid ${STALL_META[tooltip.pr.stallReason].color}55`,
+            }}>
+              {STALL_META[tooltip.pr.stallReason].label}
+            </div>
+          )}
         </div>
       )}
     </div>

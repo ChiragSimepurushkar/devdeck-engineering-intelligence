@@ -24,11 +24,20 @@ const pullRequestSchema = new mongoose.Schema(
     timeToMergeSeconds: { type: Number },        // opened → merged
     churnRate: { type: Number, default: 0 },     // re-reviews / total reviews
     reviewDepthScore: { type: Number, default: 0 }, // 0-1
-    // AI-computed fields (stub)
+    // AI-computed fields
     complexityLabel: { type: String, enum: ['trivial', 'low', 'medium', 'high', 'epic'], default: 'medium' },
     shipProbability: { type: Number },          // 0-100
     stallProbability: { type: Number },         // 0-1
     scopeCreepFlag: { type: Boolean, default: false },
+    // Nuance signal: WHY is this PR slow?
+    // Culture problems: REVIEWER_INACTIVE, NO_REVIEWER, CHURNING
+    // Legitimate complexity: COMPLEX_IN_REVIEW, NEEDS_EXPERT
+    // Generic: STALLED, null (active/healthy)
+    stallReason: {
+      type: String,
+      enum: ['REVIEWER_INACTIVE', 'NO_REVIEWER', 'CHURNING', 'COMPLEX_IN_REVIEW', 'NEEDS_EXPERT', 'STALLED', null],
+      default: null,
+    },
     // Timestamps
     firstCommitAt: { type: Date },
     openedAt: { type: Date },

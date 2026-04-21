@@ -63,6 +63,58 @@ function computeShipProbability(pr) {
 }
 
 /**
+ * Nuance signal: classify WHY a PR is slow.
+ * Distinguishes review culture problems from legitimately complex work.
+ * Returns null for healthy/active PRs.
+ */
+export function classifyStallReason(pr) {
+  if (pr.state !== 'open') return null;
+
+  const hoursOpen = pr.openedAt
+    ? (Date.now() - new Date(pr.openedAt)) / 3_600_000
+    : 0;
+  const hoursSinceActivity = pr.lastActivityAt
+    ? (Date.now() - new Date(pr.lastActivityAt)) / 3_600_000
+    : 9_999;
+  const hasReviewer = (pr.requestedReviewers || []).length > 0;
+  const hasFirstReview = !!pr.firstReviewAt;
+  const isComplex = ['high', 'epic'].includes(pr.complexityLabel);
+
+  // ── Culture problems ─────────────────────────────────────────────────────
+  // Reviewer was assigned but has not submitted any review in 48h.
+  // This is a broken review culture signal, not a complexity signal.
+  if (hasReviewer && !hasFirstReview && hoursSinceActivity > 48)
+    return 'REVIEWER_INACTIVE';
+
+  // No reviewer assigned after 24h open — process breakdown.
+  // A complex PR still needs a reviewer assigned quickly.
+  if (!hasReviewer && !pr.isDraft && hoursOpen > 24)
+    return 'NO_REVIEWER';
+
+  // High churn: author keeps pushing, reviewer keeps requesting changes.
+  // Indicates a quality or alignment problem, not slow review.
+  if ((pr.churnRate || 0) > 0.5 && hoursSinceActivity < 24)
+    return 'CHURNING';
+
+  // ── Legitimate complexity ─────────────────────────────────────────────────
+  // Epic/high complexity with an active review in progress — this is healthy,
+  // just slower by nature. Do not flag as a culture problem.
+  if (isComplex && hasFirstReview && hoursSinceActivity < 72)
+    return 'COMPLEX_IN_REVIEW';
+
+  // Complex PR, no reviewer yet in the first 48h — needs expert assignment,
+  // but not yet a process failure.
+  if (isComplex && !hasReviewer && hoursOpen < 48)
+    return 'NEEDS_EXPERT';
+
+  // Catch-all: gone quiet regardless of reason.
+  if (hoursSinceActivity > 72)
+    return 'STALLED';
+
+  return null; // active, no flag needed
+}
+
+/**
  * Main sync function — fetches all open + recent closed PRs for a repo
  */
 export async function syncRepository(repo, pat, orgId) {
@@ -195,9 +247,10 @@ async function upsertPR(octokit, repo, ghPr, orgId) {
     labels: (detail.labels || []).map((l) => ({ name: l.name, color: l.color })),
   };
 
-  // Compute cycle time AFTER setting dates
+  // Compute derived fields AFTER setting all dates and labels
   prDoc.cycleTimeSeconds = computeCycleTime({ ...prDoc });
   prDoc.shipProbability = computeShipProbability({ ...prDoc });
+  prDoc.stallReason = classifyStallReason({ ...prDoc });
 
   const saved = await PullRequest.findOneAndUpdate(
     { repoFullName: repo.fullName, githubPrId: detail.id },
