@@ -1,210 +1,197 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { GitBranch, Plus, RefreshCw, CheckCircle2, ArrowRight, Key } from 'lucide-react';
-import api from '../lib/api';
+import { GitBranch, Activity, ArrowRight, ArrowLeft, Loader, CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '../store';
-
-const steps = ['Connect GitHub', 'Select Repos', 'Done'];
+import api from '../lib/api';
 
 export default function ConnectPage() {
+  const { user } = useAuthStore();
   const navigate = useNavigate();
-  const { user, setAuth } = useAuthStore();
-  const [step, setStep] = useState(user?.githubUsername ? 1 : 0);
-  const [pat, setPat] = useState('');
-  const [patError, setPatError] = useState('');
-  const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
-  const [addingRepos, setAddingRepos] = useState(false);
+  const [repoUrl, setRepoUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  // Connect PAT
-  const connectPAT = useMutation({
-    mutationFn: (p: string) => api.post('/github/connect-pat', { pat: p }),
-    onSuccess: (res) => {
-      if (res.data.success) {
-        // Update local user state with github username
-        if (user) setAuth({ ...user, githubUsername: res.data.githubUsername }, localStorage.getItem('devdeck_token') || '');
-        setStep(1);
-        setPatError('');
-      }
-    },
-    onError: (err: any) => setPatError(err.response?.data?.message || 'Failed to connect'),
-  });
-
-  // List available repos
-  const { data: reposData, isLoading: reposLoading } = useQuery({
-    queryKey: ['github-repos'],
-    queryFn: () => api.get('/github/repos').then(r => r.data.repos),
-    enabled: step === 1,
-  });
-
-  const handleAddRepos = async () => {
-    setAddingRepos(true);
+  const handleConnect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repoUrl.trim()) { setError('Please enter a repository URL or Owner/Repo'); return; }
+    setLoading(true);
+    setError('');
     try {
-      for (const fullName of selectedRepos) {
-        const [owner, name] = fullName.split('/');
-        await api.post('/github/add-repo', { owner, name, fullName });
+      const { data } = await api.post('/github/setup', { repoUrl });
+      if (data.success) {
+        setSuccess(true);
+        useAuthStore.setState((state) => ({
+          user: state.user ? { ...state.user, githubUsername: data.owner } : null
+        }));
+        setTimeout(() => navigate('/dashboard'), 1200);
       }
-      setStep(2);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to connect. Check the repo URL and try again.');
     } finally {
-      setAddingRepos(false);
+      setLoading(false);
     }
   };
 
+  const examples = [
+    'facebook/react',
+    'vercel/next.js',
+    'microsoft/vscode',
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-8">
-      <div className="w-full max-w-2xl">
-        {/* Step indicator */}
-        <div className="flex items-center gap-3 mb-10">
-          {steps.map((s, i) => (
-            <React.Fragment key={s}>
-              <div className={`flex items-center gap-2 text-sm font-medium ${i <= step ? 'gradient-text' : ''}`}
-                style={{ color: i > step ? 'var(--color-text-muted)' : undefined }}>
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{ background: i <= step ? 'var(--color-accent-gradient)' : 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
-                  {i < step ? <CheckCircle2 size={12} /> : i + 1}
-                </div>
-                {s}
-              </div>
-              {i < steps.length - 1 && <div className="flex-1 h-px" style={{ background: 'var(--glass-border)' }} />}
-            </React.Fragment>
-          ))}
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--dd-bg)',
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+    }}>
+      <div style={{
+        position: 'relative', overflow: 'hidden',
+        background: 'linear-gradient(135deg, #0d1117 0%, #161b27 100%)',
+        borderRight: '1px solid rgba(255,255,255,0.07)',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        padding: '60px 64px',
+      }}>
+        <div style={{ position: 'absolute', width: 400, height: 400, top: '-80px', left: '-80px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(101,119,243,0.12) 0%, transparent 70%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 300, height: 300, bottom: '-40px', right: '-40px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,203,169,0.09) 0%, transparent 70%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #6577f3, #00cba9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Activity size={20} color="white" />
+          </div>
+          <div>
+            <div style={{ fontFamily: 'Clash Display, Inter, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--dd-text)' }}>DevDeck</div>
+            <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--dd-text-muted)', textTransform: 'uppercase' }}>Engineering Intel</div>
+          </div>
         </div>
 
-        {/* Step 0: PAT Input */}
-        {step === 0 && (
-          <div className="glass-card p-8 animate-scale-in">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 rounded-xl" style={{ background: 'rgba(124,58,237,0.15)' }}>
-                <Key size={20} style={{ color: 'var(--color-accent-1)' }} />
-              </div>
+        <h1 style={{ fontFamily: 'Clash Display, Inter, sans-serif', fontSize: 40, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.1, color: 'var(--dd-text)', marginBottom: 16 }}>
+          Connect your<br />
+          <span style={{ background: 'linear-gradient(135deg, #6577f3, #00cba9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>GitHub Repository</span>
+        </h1>
+        <p style={{ fontSize: 15, color: 'var(--dd-text-muted)', lineHeight: 1.65, maxWidth: 380, marginBottom: 48 }}>
+          Link your target repository to unlock real-time PR health tracking, cycle time analytics, and AI-powered insights.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {[
+            { icon: '📊', title: 'Live PR Matrix',      desc: 'Bubble visualization of all open PRs by health status.' },
+            { icon: '⚡', title: 'Cycle Time Tracking', desc: 'Automated measurement from commit to production.' },
+            { icon: '🤖', title: 'AI Stall Predictor',  desc: 'ML-powered prediction of PRs likely to stall.' },
+          ].map(({ icon, title, desc }) => (
+            <div key={title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>{icon}</div>
               <div>
-                <h2 className="font-display text-xl font-bold">Connect GitHub</h2>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Enter a Personal Access Token (PAT)</p>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--dd-text)', marginBottom: 3 }}>{title}</div>
+                <div style={{ fontSize: 12, color: 'var(--dd-text-muted)', lineHeight: 1.5 }}>{desc}</div>
               </div>
             </div>
-
-            <div className="mb-6 p-4 rounded-xl" style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)' }}>
-              <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>Create a PAT at:</p>
-              <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer"
-                className="text-sm font-medium" style={{ color: 'var(--color-accent-2)' }}>
-                github.com/settings/tokens/new ↗
-              </a>
-              <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
-                Scopes needed: <code className="px-1 rounded" style={{ background: 'var(--glass-bg)' }}>repo</code>, <code className="px-1 rounded" style={{ background: 'var(--glass-bg)' }}>read:user</code>
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <input
-                type="password"
-                value={pat}
-                onChange={(e) => setPat(e.target.value)}
-                placeholder="ghp_xxxxxxxxxxxx"
-                className="w-full px-4 py-3 rounded-xl text-sm font-mono"
-                style={{
-                  background: 'var(--glass-bg)',
-                  border: `1px solid ${patError ? 'var(--color-danger)' : 'var(--glass-border)'}`,
-                  color: 'var(--color-text-primary)',
-                  outline: 'none',
-                }}
-              />
-              {patError && <p className="text-xs mt-2" style={{ color: 'var(--color-danger)' }}>{patError}</p>}
-            </div>
-
-            <button
-              onClick={() => connectPAT.mutate(pat)}
-              disabled={!pat || connectPAT.isPending}
-              className="btn-magnetic w-full"
-            >
-              {connectPAT.isPending ? 'Verifying...' : 'Connect GitHub'}
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* Step 1: Repo Selection */}
-        {step === 1 && (
-          <div className="glass-card p-8 animate-scale-in">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl" style={{ background: 'rgba(124,58,237,0.15)' }}>
-                  <GitBranch size={20} style={{ color: 'var(--color-accent-1)' }} />
-                </div>
-                <div>
-                  <h2 className="font-display text-xl font-bold">Select Repositories</h2>
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Choose repos to track</p>
-                </div>
-              </div>
-              <span className="badge badge-accent">{selectedRepos.size} selected</span>
-            </div>
-
-            {reposLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-14 w-full" />)}
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto mb-6">
-                {(reposData || []).map((repo: any) => {
-                  const isSelected = selectedRepos.has(repo.fullName);
-                  return (
-                    <button
-                      key={repo.fullName}
-                      onClick={() => {
-                        const s = new Set(selectedRepos);
-                        isSelected ? s.delete(repo.fullName) : s.add(repo.fullName);
-                        setSelectedRepos(s);
-                      }}
-                      className="w-full text-left px-4 py-3 rounded-xl transition-all"
-                      style={{
-                        background: isSelected ? 'rgba(124,58,237,0.12)' : 'var(--glass-bg)',
-                        border: `1px solid ${isSelected ? 'rgba(124,58,237,0.4)' : 'var(--glass-border)'}`,
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium text-sm">{repo.fullName}</span>
-                          {repo.language && (
-                            <span className="ml-2 text-xs px-2 py-0.5 rounded" style={{ background: 'var(--glass-bg)', color: 'var(--color-text-muted)' }}>
-                              {repo.language}
-                            </span>
-                          )}
-                        </div>
-                        {isSelected && <CheckCircle2 size={16} style={{ color: 'var(--color-accent-1)' }} />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button onClick={handleAddRepos} disabled={selectedRepos.size === 0 || addingRepos} className="btn-magnetic flex-1">
-                {addingRepos ? <><RefreshCw size={16} className="animate-spin" /> Syncing...</> : <><Plus size={16} /> Track {selectedRepos.size} Repo{selectedRepos.size !== 1 ? 's' : ''}</>}
-              </button>
-              <button onClick={() => navigate('/dashboard')} className="btn-ghost">
-                Skip
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Done */}
-        {step === 2 && (
-          <div className="glass-card p-8 animate-scale-in text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse-glow"
-              style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)' }}>
-              <CheckCircle2 size={32} style={{ color: 'var(--color-healthy)' }} />
-            </div>
-            <h2 className="font-display text-2xl font-bold mb-3">You're all set!</h2>
-            <p className="mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-              GitHub sync started. PRs, reviews and metrics will appear on your dashboard in a few moments.
-            </p>
-            <button onClick={() => navigate('/dashboard')} className="btn-magnetic">
-              Open Dashboard <ArrowRight size={16} />
-            </button>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px 72px' }}>
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'var(--dd-text-muted)', fontSize: 13, cursor: 'pointer', marginBottom: 40, padding: 0 }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--dd-text)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--dd-text-muted)')}
+        >
+          <ArrowLeft size={15} /> Back to Dashboard
+        </button>
+
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={{ fontFamily: 'Clash Display, Inter, sans-serif', fontSize: 28, fontWeight: 700, color: 'var(--dd-text)', marginBottom: 8 }}>
+            Welcome, {user?.name?.split(' ')[0] ?? 'there'} 👋
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--dd-text-muted)' }}>
+            Enter your GitHub repository to start tracking engineering metrics.
+          </p>
+        </div>
+
+        <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--dd-text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Repository
+            </label>
+            <div style={{ position: 'relative' }}>
+              <GitBranch size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--dd-text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="owner/repository"
+                value={repoUrl}
+                onChange={e => { setRepoUrl(e.target.value); setError(''); }}
+                style={{
+                  width: '100%', padding: '13px 14px 13px 40px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${error ? 'var(--dd-red)' : 'rgba(255,255,255,0.09)'}`,
+                  borderRadius: 10, color: 'var(--dd-text)', fontSize: 14,
+                  outline: 'none', fontFamily: 'monospace',
+                  transition: 'border-color 0.15s',
+                }}
+                onFocus={e => { if (!error) e.target.style.borderColor = 'var(--dd-accent)'; }}
+                onBlur={e => { if (!error) e.target.style.borderColor = 'rgba(255,255,255,0.09)'; }}
+              />
+            </div>
+            {error && <div style={{ fontSize: 12, color: 'var(--dd-red)', marginTop: 6 }}>{error}</div>}
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--dd-text-dim)', marginBottom: 8 }}>Examples:</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {examples.map(ex => (
+                <button
+                  key={ex}
+                  type="button"
+                  onClick={() => setRepoUrl(ex)}
+                  style={{
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 6, padding: '4px 10px', fontSize: 11, color: 'var(--dd-text-muted)',
+                    cursor: 'pointer', fontFamily: 'monospace', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'var(--dd-text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--dd-text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || success}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              padding: '14px 0', marginTop: 8,
+              background: success ? '#3fb950' : 'var(--dd-accent)',
+              border: 'none', borderRadius: 10,
+              color: 'white', fontSize: 14, fontWeight: 600,
+              cursor: loading || success ? 'not-allowed' : 'pointer',
+              opacity: loading || success ? 0.9 : 1,
+              transition: 'all 0.2s',
+            }}
+          >
+            {success ? (
+              <><CheckCircle2 size={17} /> Connected! Redirecting…</>
+            ) : loading ? (
+              <><Loader size={17} style={{ animation: 'spin 1s linear infinite' }} /> Connecting…</>
+            ) : (
+              <>Connect Repository <ArrowRight size={17} /></>
+            )}
+          </button>
+        </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 28, padding: '12px 16px', background: 'rgba(101,119,243,0.06)', border: '1px solid rgba(101,119,243,0.15)', borderRadius: 10 }}>
+          <CheckCircle2 size={14} style={{ color: '#3fb950', flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: 'var(--dd-text-muted)' }}>
+            Read-only access only. DevDeck never writes to your repository.
+          </span>
+        </div>
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
