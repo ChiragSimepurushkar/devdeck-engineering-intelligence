@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 
 import { useAuthStore } from './store';
 import Sidebar from './components/Sidebar';
@@ -11,6 +12,7 @@ import DashboardPage from './pages/DashboardPage';
 import PRHealthPage from './pages/PRHealthPage';
 import TeamPage from './pages/TeamPage';
 import AIAssistantPage from './pages/AIAssistantPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -96,6 +98,12 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <CustomCursor />
+        <Toaster 
+          position="bottom-right" 
+          toastOptions={{
+            style: { background: '#0f172a', color: '#f8fafc', border: '1px solid rgba(255, 255, 255, 0.1)' }
+          }} 
+        />
         <Routes>
           <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
           <Route path="/connect" element={
@@ -121,6 +129,11 @@ export default function App() {
           <Route path="/ai" element={
             <ProtectedRoute>
               <AppLayout><AIAssistantPage /></AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <AppLayout><SettingsPage /></AppLayout>
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/" replace />} />

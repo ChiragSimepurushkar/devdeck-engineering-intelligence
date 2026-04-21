@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GitPullRequest, Users, Bot, LogOut, Plus } from 'lucide-react';
+import { LayoutDashboard, GitPullRequest, Users, Bot, LogOut, Plus, Settings } from 'lucide-react';
 import { useAuthStore } from '../store';
 import api from '../lib/api';
 
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/prs', icon: GitPullRequest, label: 'PR Health' },
   { to: '/team', icon: Users, label: 'Team' },
   { to: '/ai', icon: Bot, label: 'AI Assistant' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 export default function Sidebar() {
