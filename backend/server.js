@@ -10,8 +10,11 @@ import rateLimit from 'express-rate-limit';
 import { initFirebase } from './config/firebase.js';
 import { initSocket } from './socket/index.js';
 import logger from './config/logger.js';
+import './jobs/webhookQueue.js'; // Initialize BullMQ worker
 
 import authRoutes from './routes/auth.js';
+import usersRoutes from './routes/users.js';
+import orgsRoutes from './routes/orgs.js';
 import githubRoutes from './routes/github.js';
 import metricsRoutes from './routes/metrics.js';
 import prRoutes from './routes/prs.js';
@@ -44,6 +47,8 @@ app.use('/api', apiLimiter);
 
 // ─── Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/orgs', orgsRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/prs', prRoutes);

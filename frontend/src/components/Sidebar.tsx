@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import api from '../lib/api';
+import { openAlertBox } from '../lib/toast';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
@@ -17,6 +19,17 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const syncMutation = useMutation({
+    mutationFn: () => api.post('/github/sync-all'),
+    onSuccess: () => {
+      openAlertBox('success', 'Sync triggered! Fetching latest GitHub payloads in the background.');
+      // Refetch data after a slight delay
+      setTimeout(() => queryClient.invalidateQueries(), 2000);
+    },
+    onError: () => openAlertBox('error', 'Failed to trigger sync'),
+  });
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout'); } catch (_) {}

@@ -15,6 +15,7 @@ interface AuthStore {
   user: User | null;
   token: string | null;
   setAuth: (user: User, token: string) => void;
+  setUser: (user: User) => void;
   clearAuth: () => void;
 }
 
@@ -27,6 +28,7 @@ export const useAuthStore = create<AuthStore>()(
         localStorage.setItem('devdeck_token', token);
         set({ user, token });
       },
+      setUser: (user) => set({ user }),
       clearAuth: () => {
         localStorage.removeItem('devdeck_token');
         set({ user: null, token: null });
