@@ -144,7 +144,30 @@ router.post('/sync/:repoId', protect, async (req, res) => {
     res.json({ success: true, message: 'Sync started' });
     syncRepository(repo, pat, req.orgId).catch((e) =>
       logger.error('Manual sync failed', { repo: repo.fullName, error: e.message })
-    );
+    )
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// POST /api/github/sync-all  — manually trigger re-sync for ALL connected repos in org
+router.post('/sync-all', protect, async (req, res) => {
+  try {
+    const repos = await Repository.find({ orgId: req.orgId });
+    if (!repos.length) return res.status(400).json({ success: false, message: 'No repositories connected' });
+
+    const user = await User.findById(req.user._id);
+    const cryptr = getCryptr();
+    const pat = user.githubPatEncrypted ? cryptr.decrypt(user.githubPatEncrypted) : null;
+    if (!pat) return res.status(400).json({ success: false, message: 'GitHub not connected' });
+
+    res.json({ success: true, message: 'Sync started' });
+    
+    for (const repo of repos) {
+      syncRepository(repo, pat, req.orgId).catch((e) =>
+        logger.error('Manual complete sync failed', { repo: repo.fullName, error: e.message })
+      );
+    }
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
   }

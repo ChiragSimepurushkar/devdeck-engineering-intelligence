@@ -1,7 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GitPullRequest, Users, Bot, LogOut, Plus, Settings } from 'lucide-react';
+import { LayoutDashboard, GitPullRequest, Users, Bot, LogOut, Plus, Settings, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../store';
 import api from '../lib/api';
+import { openAlertBox } from '../lib/toast';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,6 +16,17 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const syncMutation = useMutation({
+    mutationFn: () => api.post('/github/sync-all'),
+    onSuccess: () => {
+      openAlertBox('success', 'Sync triggered! Fetching latest GitHub payloads in the background.');
+      // Refetch data after a slight delay
+      setTimeout(() => queryClient.invalidateQueries(), 2000);
+    },
+    onError: () => openAlertBox('error', 'Failed to trigger sync'),
+  });
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout'); } catch (_) {}
@@ -46,6 +59,15 @@ export default function Sidebar() {
       {/* Connect repo shortcut */}
       <button onClick={() => navigate('/connect')} className="sidebar-icon" title="Connect Repo">
         <Plus size={18} />
+      </button>
+
+      {/* Sync all shortcut */}
+      <button 
+        onClick={() => syncMutation.mutate()} 
+        className={`sidebar-icon ${syncMutation.isPending ? 'text-cyan-400' : ''}`} 
+        title="Sync All Data From GitHub"
+      >
+        <RefreshCw size={18} className={syncMutation.isPending ? 'animate-spin' : ''} />
       </button>
 
       <div style={{ height: 1, background: 'var(--glass-border)', width: '40px', margin: '4px 0' }} />
