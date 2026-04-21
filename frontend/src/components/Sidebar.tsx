@@ -1,13 +1,17 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GitPullRequest, Users, Bot, LogOut, Plus } from 'lucide-react';
+import {
+  LayoutDashboard, GitPullRequest, Users, Bot,
+  LogOut, Plus, Activity, CheckCircle2, Settings
+} from 'lucide-react';
 import { useAuthStore } from '../store';
 import api from '../lib/api';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/prs', icon: GitPullRequest, label: 'PR Health' },
-  { to: '/team', icon: Users, label: 'Team' },
-  { to: '/ai', icon: Bot, label: 'AI Assistant' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
+  { to: '/prs',       icon: GitPullRequest,  label: 'PR Health' },
+  { to: '/team',      icon: Users,           label: 'Team' },
+  { to: '/ai',        icon: Bot,             label: 'AI Assistant' },
+  { to: '/settings',  icon: Settings,        label: 'Settings' },
 ];
 
 export default function Sidebar() {
@@ -23,42 +27,86 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       {/* Logo */}
-      <div className="mb-4">
-        <div className="font-display gradient-text font-bold" style={{ fontSize: '18px', letterSpacing: '-0.04em' }}>D</div>
+      <div className="sidebar-logo">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: 'linear-gradient(135deg, #6577f3, #00cba9)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Activity size={16} color="white" />
+          </div>
+          <div>
+            <div className="sidebar-logo-title">DevDeck</div>
+            <div className="sidebar-logo-sub">Engineering Intel</div>
+          </div>
+        </div>
       </div>
 
-      <div style={{ height: 1, background: 'var(--glass-border)', width: '40px', margin: '4px 0' }} />
-
       {/* Nav */}
-      {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-        <NavLink key={to} to={to} title={label}>
-          {({ isActive }) => (
-            <div className={`sidebar-icon ${isActive ? 'active' : ''}`}>
-              <Icon size={18} />
+      <nav className="sidebar-nav">
+        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+          <NavLink key={to} to={to} style={{ textDecoration: 'none' }}>
+            {({ isActive }) => (
+              <div className={`sidebar-item ${isActive ? 'active' : ''}`}>
+                <Icon size={16} />
+                <span>{label}</span>
+              </div>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Bottom */}
+      <div className="sidebar-bottom">
+        <button
+          className="sidebar-new-project"
+          onClick={() => navigate('/connect')}
+        >
+          <Plus size={14} />
+          New Project
+        </button>
+
+        <div className="sidebar-item" style={{ cursor: 'default' }}>
+          <CheckCircle2 size={15} style={{ color: 'var(--dd-green)' }} />
+          <span style={{ fontSize: 12, color: 'var(--dd-text-muted)' }}>System Status</span>
+        </div>
+
+        <button className="sidebar-item" onClick={handleLogout}>
+          <LogOut size={15} />
+          <span>Logout</span>
+        </button>
+
+        {/* User avatar at very bottom */}
+        {user && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', marginTop: 4,
+            borderTop: '1px solid var(--dd-border)',
+          }}>
+            {user.avatar
+              ? <img src={user.avatar} alt={user.name} style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid var(--dd-border)' }} />
+              : (
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'linear-gradient(135deg,#6577f3,#00cba9)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700, color: 'white',
+                }}>
+                  {user.name?.[0]?.toUpperCase() ?? 'U'}
+                </div>
+              )
+            }
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dd-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.name}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--dd-text-muted)' }}>Staff Engineer</div>
             </div>
-          )}
-        </NavLink>
-      ))}
-
-      <div style={{ flex: 1 }} />
-
-      {/* Connect repo shortcut */}
-      <button onClick={() => navigate('/connect')} className="sidebar-icon" title="Connect Repo">
-        <Plus size={18} />
-      </button>
-
-      <div style={{ height: 1, background: 'var(--glass-border)', width: '40px', margin: '4px 0' }} />
-
-      {/* Avatar */}
-      {user?.avatar && (
-        <img src={user.avatar} alt={user.name}
-          className="rounded-full" style={{ width: 32, height: 32, border: '2px solid var(--glass-border)' }} />
-      )}
-
-      {/* Logout */}
-      <button onClick={handleLogout} className="sidebar-icon" title="Sign out">
-        <LogOut size={16} />
-      </button>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
