@@ -88,10 +88,15 @@ Instructions:
     const model = getGemini();
 
     // Build conversation history for multi-turn
-    const chatHistory = history.slice(-6).map(m => ({
+    let chatHistory = history.slice(-6).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
     }));
+
+    // Gemini requires the first message to be from 'user'
+    while (chatHistory.length > 0 && chatHistory[0].role === 'model') {
+      chatHistory.shift();
+    }
 
     const chat = model.startChat({
       history: chatHistory.length > 0 ? chatHistory : undefined,
