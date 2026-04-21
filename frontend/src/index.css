@@ -30,8 +30,27 @@
   --dd-text-muted:    #8b949e;
   --dd-text-dim:      #484f58;
 
+  --dd-hover-overlay:  rgba(255,255,255,0.05);
+  --dd-surface:        rgba(255,255,255,0.04);
+  --dd-surface-strong: rgba(255,255,255,0.08);
+
   --sidebar-w:        220px;
 }
+
+/* Light theme overrides */
+[data-theme="light"] {
+  --dd-hover-overlay:  rgba(0,0,0,0.05);
+  --dd-surface:        rgba(0,0,0,0.04);
+  --dd-surface-strong: rgba(0,0,0,0.07);
+}
+[data-theme="light"] .dd-card:hover { border-color: rgba(0,0,0,0.14) !important; }
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, var(--dd-card) 25%, rgba(0,0,0,0.04) 50%, var(--dd-card) 75%) !important;
+}
+[data-theme="light"] .sidebar-item:hover { background: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .topbar-search { background: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .sidebar-new-project { border-color: rgba(0,0,0,0.12) !important; }
+[data-theme="light"] .sidebar-new-project:hover { background: rgba(0,0,0,0.04) !important; }
 
 /* ─── Reset & Base ──────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -145,7 +164,7 @@ body {
 }
 
 .sidebar-item:hover {
-  background: rgba(255,255,255,0.04);
+  background: var(--dd-hover-overlay);
   color: var(--dd-text);
   border-color: var(--dd-border);
 }
@@ -184,8 +203,8 @@ body {
   transition: all 0.15s ease;
 }
 .sidebar-new-project:hover {
-  background: rgba(255,255,255,0.05);
-  border-color: rgba(255,255,255,0.2);
+  background: var(--dd-hover-overlay);
+  border-color: var(--dd-border-active);
 }
 
 /* ─── Main Content ───────────────────────────────────────────────────────── */
@@ -222,7 +241,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255,255,255,0.04);
+  background: var(--dd-surface);
   border: 1px solid var(--dd-border);
   border-radius: 8px;
   padding: 7px 12px;
@@ -251,7 +270,7 @@ body {
   cursor: pointer;
   transition: all 0.15s;
 }
-.topbar-icon-btn:hover { background: rgba(255,255,255,0.05); color: var(--dd-text); }
+.topbar-icon-btn:hover { background: var(--dd-hover-overlay); color: var(--dd-text); }
 
 .topbar-avatar {
   width: 34px; height: 34px;
@@ -276,7 +295,7 @@ body {
   border-radius: 12px;
   transition: border-color 0.2s ease;
 }
-.dd-card:hover { border-color: rgba(255,255,255,0.11); }
+.dd-card:hover { border-color: var(--dd-surface-strong); }
 
 /* ─── Badges ─────────────────────────────────────────────────────────────── */
 .badge {
@@ -309,14 +328,14 @@ body {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 9px 18px;
   border-radius: 8px;
-  background: rgba(255,255,255,0.06);
+  background: var(--dd-surface);
   color: var(--dd-text);
   font-size: 13px; font-weight: 500;
   border: 1px solid var(--dd-border);
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.btn-secondary:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.14); }
+.btn-secondary:hover { background: var(--dd-hover-overlay); border-color: var(--dd-border-active); }
 
 .btn-ghost {
   display: inline-flex; align-items: center; gap: 6px;
@@ -329,7 +348,7 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--dd-text); }
+.btn-ghost:hover { background: var(--dd-hover-overlay); color: var(--dd-text); }
 
 /* ─── Status Dot ─────────────────────────────────────────────────────────── */
 .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
@@ -369,7 +388,7 @@ body {
 
 /* ─── Skeleton ───────────────────────────────────────────────────────────── */
 .skeleton {
-  background: linear-gradient(90deg, var(--dd-card) 25%, rgba(255,255,255,0.04) 50%, var(--dd-card) 75%);
+  background: linear-gradient(90deg, var(--dd-card) 25%, var(--dd-surface) 50%, var(--dd-card) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 8px;

@@ -52,3 +52,25 @@ export const useFilterStore = create<FilterStore>((set) => ({
   setDays: (days) => set({ days }),
   setRepo: (repo) => set({ selectedRepo: repo }),
 }));
+
+// Notifications persistence store
+interface NotifStore {
+  readIds: number[];
+  dismissedIds: number[];
+  markRead: (id: number) => void;
+  markAllRead: (ids: number[]) => void;
+  dismiss: (id: number) => void;
+}
+
+export const useNotifStore = create<NotifStore>()(
+  persist(
+    (set) => ({
+      readIds: [],
+      dismissedIds: [],
+      markRead: (id) => set((s) => ({ readIds: [...s.readIds, id] })),
+      markAllRead: (ids) => set((s) => ({ readIds: Array.from(new Set([...s.readIds, ...ids])) })),
+      dismiss: (id) => set((s) => ({ dismissedIds: [...s.dismissedIds, id] })),
+    }),
+    { name: 'devdeck-notifs' }
+  )
+);

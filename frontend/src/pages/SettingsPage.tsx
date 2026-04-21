@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Palette, Bell, User, Shield, Monitor, ArrowLeft,
@@ -6,15 +6,7 @@ import {
   GitBranch, LogOut, Mail, Key
 } from 'lucide-react';
 import { useAuthStore } from '../store';
-
-const THEMES = [
-  { id: 'ethereal',  label: 'Ethereal Dark',  accent: '#6577f3', bg: '#0d1117', preview: ['#0d1117','#161b27','#6577f3'] },
-  { id: 'midnight',  label: 'Midnight Blue',  accent: '#3b82f6', bg: '#0a0f1e', preview: ['#0a0f1e','#0f172a','#3b82f6'] },
-  { id: 'forest',    label: 'Forest Dark',    accent: '#10b981', bg: '#0a1a12', preview: ['#0a1a12','#0f2418','#10b981'] },
-  { id: 'rose',      label: 'Rose Nebula',    accent: '#f43f5e', bg: '#1a0a0f', preview: ['#1a0a0f','#2a0f18','#f43f5e'] },
-  { id: 'amber',     label: 'Amber Dusk',     accent: '#f59e0b', bg: '#1a1200', preview: ['#1a1200','#261a00','#f59e0b'] },
-  { id: 'cyberpunk', label: 'Cyberpunk',      accent: '#a855f7', bg: '#0d0a1a', preview: ['#0d0a1a','#160f26','#a855f7'] },
-];
+import { THEMES, applyThemeVars, getStoredTheme } from '../lib/themes';
 
 const SECTIONS = [
   { id: 'appearance', label: 'Appearance',    icon: Palette  },
@@ -56,7 +48,7 @@ export default function SettingsPage() {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('appearance');
-  const [activeTheme, setActiveTheme] = useState('ethereal');
+  const [activeTheme, setActiveTheme]     = useState(() => getStoredTheme().id);
   const [prefs, setPrefs] = useState({
     autoRefresh: true,
     soundNotifs: false,
@@ -68,11 +60,15 @@ export default function SettingsPage() {
   });
   const pref = (k: keyof typeof prefs) => () => setPrefs(p => ({ ...p, [k]: !p[k] }));
 
-  const applyTheme = (t: typeof THEMES[0]) => {
-    document.documentElement.style.setProperty('--dd-accent', t.accent);
-    document.documentElement.style.setProperty('--dd-accent-dim', t.accent + '26');
-    document.documentElement.style.setProperty('--dd-bg', t.bg);
-    document.body.style.background = t.bg;
+  // Restore active theme from storage on mount
+  useEffect(() => {
+    const t = getStoredTheme();
+    applyThemeVars(t);
+    setActiveTheme(t.id);
+  }, []);
+
+  const handleApplyTheme = (t: typeof THEMES[0]) => {
+    applyThemeVars(t);
     setActiveTheme(t.id);
   };
 
@@ -150,12 +146,12 @@ export default function SettingsPage() {
                   {THEMES.map(t => (
                     <button
                       key={t.id}
-                      onClick={() => applyTheme(t)}
+                      onClick={() => handleApplyTheme(t)}
                       style={{
                         display: 'flex', flexDirection: 'column', gap: 10,
                         padding: '14px', borderRadius: 10, cursor: 'pointer',
-                        background: activeTheme === t.id ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
-                        border: activeTheme === t.id ? `2px solid ${t.accent}` : '2px solid rgba(255,255,255,0.06)',
+                        background: activeTheme === t.id ? 'var(--dd-hover-overlay)' : 'var(--dd-surface)',
+                        border: activeTheme === t.id ? `2px solid ${t.accent}` : '2px solid var(--dd-border)',
                         textAlign: 'left', transition: 'all 0.2s', position: 'relative',
                       }}
                     >

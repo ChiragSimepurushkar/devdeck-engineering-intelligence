@@ -12,6 +12,22 @@ DevDeck is an engineering intelligence dashboard that turns GitHub pull request 
 - Provide team and metrics endpoints for engineering insights
 - Expose an AI assistant UI grounded in stored PR and metric data
 
+## Key Features & Pages Overview (For Judges/Pitch Review)
+
+DevDeck is designed to be a comprehensive hub for engineering leaders. Below is a breakdown of the primary views and what they achieve:
+
+- **Landing Page (`/`)**: A highly polished, glassmorphic split-screen entry point. It frames the product's value proposition against a visually striking interface and provides instant Google OAuth authentication.
+
+- **Main Dashboard (`/dashboard`)**: The core command center. It features global time/repo filters, top-level metric snapshots (Sprint Health, Review Latency), interactive sparkline charts displaying 14-day history, and an integrated **AI Assistant widget** to query repo metrics in plain English.
+
+- **Pull Request Health (`/prs`)**: A dedicated interface to fight PR staleness. It combines a bubble-matrix visualization mapping out PR age against code size, and a fully sortable data grid, immediately highlighting blocked PRs and unbalanced review loads.
+
+- **Cycle Time Funnel (`/cycle-time`)**: A deep analytics page analyzing engineering flow. It visualizes the pipeline in three funnel stages (Commit to Open → Open to Review → Review to Merge) using Recharts and D3 to expose precise bottlenecks in the team's shipping velocity.
+
+- **Notifications Hub (`/notifications`)**: A centralized inbox tracking PR alerts, successful merges, review requests, and sprint warnings. Supports categorised filtering, read/unread state tracking, and direct routing back to blocked PRs.
+
+- **Settings & Dynamic Theming (`/settings`)**: A robust control panel allowing users to link GitHub organizations, manage notification preferences, and switch themes. Powered by a bespoke CSS-variable engine, the platform instantly transforms across **7 unique global themes** (including Ethereal Dark, Cyberpunk, Midnight Blue, and a pristine Light Mode) affecting all components seamlessly.
+
 ## Tech Stack
 
 - Frontend: React 19, TypeScript, Vite, React Router, TanStack Query, Zustand, Tailwind CSS, Recharts, D3, Socket.IO client

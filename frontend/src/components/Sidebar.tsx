@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, GitPullRequest, Users, Bot,
-  LogOut, Plus, Activity, CheckCircle2, Settings
+  LogOut, Plus, Activity, CheckCircle2, Settings, Clock
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import api from '../lib/api';
@@ -9,11 +9,12 @@ import { openAlertBox } from '../lib/toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/prs',       icon: GitPullRequest,  label: 'PR Health' },
-  { to: '/team',      icon: Users,           label: 'Team' },
-  { to: '/ai',        icon: Bot,             label: 'AI Assistant' },
-  { to: '/settings',  icon: Settings,        label: 'Settings' },
+  { to: '/dashboard',  icon: LayoutDashboard, label: 'Overview'    },
+  { to: '/prs',        icon: GitPullRequest,  label: 'PR Health'   },
+  { to: '/cycle-time', icon: Clock,           label: 'Cycle Time'  },
+  { to: '/team',       icon: Users,           label: 'Team'        },
+  { to: '/ai',         icon: Bot,             label: 'AI Assistant'},
+  { to: '/settings',   icon: Settings,        label: 'Settings'    },
 ];
 
 export default function Sidebar() {

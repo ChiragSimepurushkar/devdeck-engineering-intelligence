@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'react-hot-toast';
+import { getStoredTheme, applyThemeVars } from './lib/themes';
 
 import { useAuthStore } from './store';
 import Sidebar from './components/Sidebar';
@@ -13,7 +13,9 @@ import DashboardPage   from './pages/DashboardPage';
 import PRHealthPage    from './pages/PRHealthPage';
 import TeamPage        from './pages/TeamPage';
 import AIAssistantPage from './pages/AIAssistantPage';
-import SettingsPage    from './pages/SettingsPage';
+import SettingsPage        from './pages/SettingsPage';
+import CycleTimePage       from './pages/CycleTimePage';
+import NotificationsPage   from './pages/NotificationsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -37,6 +39,8 @@ function AppLayout({ children, title }: { children: React.ReactNode; title?: str
 }
 
 export default function App() {
+  useEffect(() => { applyThemeVars(getStoredTheme()); }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -70,6 +74,16 @@ export default function App() {
           <Route path="/settings" element={
             <ProtectedRoute>
               <AppLayout title="Settings"><SettingsPage /></AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/cycle-time" element={
+            <ProtectedRoute>
+              <AppLayout title="Cycle Time"><CycleTimePage /></AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <AppLayout title="Notifications"><NotificationsPage /></AppLayout>
             </ProtectedRoute>
           } />
 
