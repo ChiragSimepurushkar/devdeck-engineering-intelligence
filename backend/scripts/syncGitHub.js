@@ -220,23 +220,6 @@ async function upsertPR(octokit, repo, ghPr, orgId) {
     );
   }
 
-  // Upsert requested reviewers as contributors too
-  for (const r of (detail.requested_reviewers || [])) {
-    if (r.login) {
-      await Contributor.findOneAndUpdate(
-        { orgId, username: r.login },
-        {
-          orgId,
-          platformUserId: String(r.id),
-          username: r.login,
-          displayName: r.login,
-          avatarUrl: r.avatar_url,
-        },
-        { upsert: true }
-      );
-    }
-  }
-
   // Log event
   await PREvent.findOneAndUpdate(
     { prId: saved._id, eventType: 'opened', actorUsername: detail.user?.login },

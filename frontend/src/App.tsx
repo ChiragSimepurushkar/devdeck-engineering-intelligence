@@ -7,13 +7,13 @@ import { useAuthStore } from './store';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 
-import LandingPage from './pages/LandingPage';
-import ConnectPage from './pages/ConnectPage';
-import DashboardPage from './pages/DashboardPage';
-import PRHealthPage from './pages/PRHealthPage';
-import TeamPage from './pages/TeamPage';
+import LandingPage     from './pages/LandingPage';
+import ConnectPage     from './pages/ConnectPage';
+import DashboardPage   from './pages/DashboardPage';
+import PRHealthPage    from './pages/PRHealthPage';
+import TeamPage        from './pages/TeamPage';
 import AIAssistantPage from './pages/AIAssistantPage';
-import SettingsPage from './pages/SettingsPage';
+import SettingsPage    from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -40,10 +40,6 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Toaster 
-          position="bottom-right"
-          toastOptions={{ style: { background: '#1c2333', color: '#e6edf3', border: '1px solid rgba(255,255,255,0.09)' } }}
-        />
         <Routes>
           <Route path="/" element={<LandingPage />} />
 

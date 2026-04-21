@@ -26,14 +26,8 @@ api.interceptors.response.use(
         return api(original);
       } catch {
         localStorage.removeItem('devdeck_token');
-        localStorage.removeItem('auth-storage');
         window.location.href = '/';
       }
-    } else if (err.response?.status === 401 && !original._retry) {
-      // User deleted from DB or invalid token -> hard logout immediately
-      localStorage.removeItem('devdeck_token');
-      localStorage.removeItem('auth-storage');
-      window.location.href = '/';
     }
     return Promise.reject(err);
   }
