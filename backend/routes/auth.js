@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import { admin } from '../config/firebase.js';
 import User from '../models/User.js';
 import Organisation from '../models/Organisation.js';
@@ -37,19 +38,24 @@ router.post('/firebase', async (req, res) => {
     // Find or create user
     let user = await User.findOne({ firebaseUid: uid });
     if (!user) {
-      // Auto-create a personal org for the new user
-      const slug = email.split('@')[0].replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-' + Date.now();
-      const org = await Organisation.create({ name: name || email, slug, ownerId: null /* set below */ });
-      user = await User.create({
+      // Auto-create a personal org for the new user, breaking the circular requirement by pre-generating ObjectIds
+      const orgId = new mongoose.Types.ObjectId();
+      const userId = new mongoose.Types.ObjectId();
+
+      const slug = (email || '').split('@')[0].replace(/[^a-z0-9]/gi, '-').toLowerCase() + '-' + Date.now();
+      
+      const org = new Organisation({ _id: orgId, name: name || email, slug, ownerId: userId });
+      user = new User({
+        _id: userId,
         firebaseUid: uid,
         name: name || 'Developer',
         email,
         avatar: picture,
-        orgId: org._id,
+        orgId: orgId,
         role: 'admin',
       });
-      org.ownerId = user._id;
-      await org.save();
+
+      await Promise.all([org.save(), user.save()]);
       logger.info('New user registered', { email });
     }
 
