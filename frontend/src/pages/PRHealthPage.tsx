@@ -12,6 +12,16 @@ const healthColor: Record<BubbleHealth, string> = {
   stalled: '#f85149',
 };
 
+// Nuance signal: human-readable labels and colours per stall reason.
+// Culture problems get orange/red. Legitimate complexity gets blue/purple.
+const STALL_META: Record<string, { label: string; color: string }> = {
+  REVIEWER_INACTIVE: { label: '⚠ Reviewer inactive',      color: '#f59e0b' },
+  NO_REVIEWER:       { label: '⚠ No reviewer assigned',   color: '#f59e0b' },
+  CHURNING:          { label: '🔄 High churn',            color: '#ef4444' },
+  COMPLEX_IN_REVIEW: { label: '✓ Complex — in review',   color: '#06b6d4' },
+  NEEDS_EXPERT:      { label: '🔍 Needs expert reviewer', color: '#8b5cf6' },
+  STALLED:           { label: '✗ Stalled',                color: '#ef4444' },
+};
 function BubbleMatrix({ data }: { data: any[] }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -124,7 +134,23 @@ function BubbleMatrix({ data }: { data: any[] }) {
             <span className={`badge badge-${tooltip.pr.health === 'healthy' ? 'green' : tooltip.pr.health === 'at-risk' ? 'amber' : 'red'}`}>
               {tooltip.pr.health}
             </span>
+            <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{tooltip.pr.complexity}</span>
           </div>
+          {/* Nuance signal — the key PS-03 differentiator */}
+          {tooltip.pr.stallReason && STALL_META[tooltip.pr.stallReason] && (
+            <div style={{
+              marginTop: 4,
+              padding: '3px 8px',
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              background: STALL_META[tooltip.pr.stallReason].color + '22',
+              color: STALL_META[tooltip.pr.stallReason].color,
+              border: `1px solid ${STALL_META[tooltip.pr.stallReason].color}55`,
+            }}>
+              {STALL_META[tooltip.pr.stallReason].label}
+            </div>
+          )}
         </div>
       )}
     </div>
